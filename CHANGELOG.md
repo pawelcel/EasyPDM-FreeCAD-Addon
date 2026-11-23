@@ -6,6 +6,12 @@ the macros were released with EasyPDM itself; see the
 
 ## [Unreleased]
 
+## [0.9.9]
+
+### Added
+- **Parts list on assembly drawings.** On the first sheet of an assembly's drawing, Upload, Download and Refresh drawing sheet build a parts list above the processes table: number, drawing number and quantity of each direct component, with the name's translations under the drawing number in a multilingual project. The numbers are the components' positions in the assembly's structure in EasyPDM. The list is half the title block's width, against the frame's right edge; a row grows when its text needs more lines, and when the list would reach the revisions table or the top of the frame it continues in a column to its left. Headers come in the project's main language. Needs EasyPDM 0.9.4 or later; an older server sends no parts list and the sheet stays as it was.
+- **Balloons numbered from the parts list.** Each balloon on the drawing gets the number of the component its arrow points at, whatever was typed into it, so the drawing, the list and the structure in EasyPDM say the same. The component is found by following the arrow's tip into the model along the viewing direction, taking the one nearest the viewer, or the nearest one when the tip sits on an outline. A balloon pointing at something that is not on the list keeps its text.
+
 ## [0.9.8]
 
 ### Changed

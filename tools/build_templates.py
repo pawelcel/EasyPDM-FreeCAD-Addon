@@ -273,6 +273,11 @@ def build_base_sheet(fmt_name, rec=None):
     add('<g id="pdm_logo" data-x="%s" data-y="%s" data-size="17"/>' % (_sh_f(X(163)), _sh_f(Y(11))))
     add('<g id="pdm_processes" data-x="%s" data-bottom="%s" data-width="180"/>' % (_sh_f(x0), _sh_f(y0)))
     add('<g id="pdm_revisions" data-right="%s" data-top="%s" data-width="160"/>' % (_sh_f(FR), _sh_f(FT)))
+    # The parts list of an assembly drawing: on the processes table (or the title block), half
+    # its width against the frame's right edge, continued to the left when it reaches the
+    # revisions table or the frame.
+    add('<g id="pdm_bom" data-right="%s" data-bottom="%s" data-width="90" data-top="%s" data-left="%s"/>'
+        % (_sh_f(FR), _sh_f(y0), _sh_f(FT), _sh_f(FL)))
     add("</g>")
 
     return (
@@ -287,9 +292,10 @@ def build_base_sheet(fmt_name, rec=None):
     )
 
 
-def _processes_table(x0, bottom, width, rows, headers, measure):
+def _processes_table(x0, bottom, width, rows, headers, measure, extent=None):
     """rows: [{"name", "description", "nameTr": [..], "descTr": [..]}] in the item's order;
-    headers: (no, process, description). Header at the bottom, row 1 right above it."""
+    headers: (no, process, description). Header at the bottom, row 1 right above it.
+    extent, when given, gets "top": where the table ends, for the parts list above it."""
     w_no, w_name = 10.0, 60.0
     w_desc = width - w_no - w_name
     MAIN, SMALL, LH_MAIN, LH_SMALL, HDR = 3.4, 2.3, 3.6, 2.7, 6.0
@@ -304,6 +310,8 @@ def _processes_table(x0, bottom, width, rows, headers, measure):
         built.append((i + 1, name_l, desc_l, ntr_l, dtr_l, max(h, 6.0)))
     hdr_top = bottom - HDR
     top = hdr_top - sum(b[5] for b in built)
+    if extent is not None:
+        extent["top"] = top
     o = ['<g style="%s">' % _THIN]
     o.append(_sh_line(x0 + w_no, top, x0 + w_no, bottom))
     o.append(_sh_line(x0 + w_no + w_name, top, x0 + w_no + w_name, bottom))
@@ -338,9 +346,10 @@ def _processes_table(x0, bottom, width, rows, headers, measure):
     return o
 
 
-def _revisions_table(right, top, width, rows, headers, measure):
+def _revisions_table(right, top, width, rows, headers, measure, extent=None):
     """rows: [{"label", "date", "description", "by"}] oldest first; headers: (rev, date,
-    description, by). Header at the top, rows growing downward."""
+    description, by). Header at the top, rows growing downward. extent, when given, gets
+    "bottom" and "left": the corner the parts list must keep clear of."""
     x0 = right - width
     w_rev, w_date, w_by = 12.0, 22.0, 26.0
     w_desc = width - w_rev - w_date - w_by
@@ -362,6 +371,8 @@ def _revisions_table(right, top, width, rows, headers, measure):
             o_lines.append(_sh_line(x0, y + h, right, y + h))   # the last one is the frame's edge
         y += h
     bottom = y
+    if extent is not None:
+        extent["bottom"], extent["left"] = bottom, x0
     for cx in (x0 + w_rev, x0 + w_rev + w_date, right - w_by):
         o_lines.append(_sh_line(cx, top, cx, bottom))
     o = ['<g style="%s">' % _THIN] + o_lines + ["</g>"]
@@ -370,6 +381,87 @@ def _revisions_table(right, top, width, rows, headers, measure):
     for x, h in zip(hx, headers):
         o.append(_sh_text(x, top + 4.2, h, 2.4, ""))
     return o + o_text
+
+
+def _sh_qty(q):
+    """1, 2.5 -- a quantity without a trailing ".0"."""
+    try:
+        f = float(q)
+    except (TypeError, ValueError):
+        return str(q or "")
+    return str(int(f)) if f == int(f) else ("%g" % f)
+
+
+def _bom_table(right, bottom, width, rows, headers, measure, limit_top, limit_rest, limit_left):
+    """The parts list of an assembly drawing: rows [{"no", "name", "nameTr": [..], "qty"}] ("name"
+    holds the drawing number) in
+    EasyPDM's BOM order; headers (no, name, quantity). Laid out like the processes table it
+    sits on (ISO 7573): header at the bottom, the first row right above it, growing upward.
+
+    A column ends where it would reach limit_top (the first column, under the revisions
+    table) or limit_rest (the others, the frame); the rest of the rows continue in a column
+    of the same width to its left, with a header of its own and the same bottom line -- never
+    past limit_left. A row is never split. Each translation of a name goes on a line of its
+    own under the name, in smaller lettering."""
+    w_no, w_qty = 10.0, 14.0
+    w_name = width - w_no - w_qty
+    MAIN, SMALL, LH_MAIN, LH_SMALL, HDR, pad = 3.4, 2.3, 3.6, 2.7, 6.0, 1.5
+    built = []
+    for r in rows:
+        name_l = wrap_text(r.get("name", ""), w_name - 2 * pad, MAIN, measure) or [""]
+        tr_l = []
+        for t in r.get("nameTr") or []:
+            tr_l.extend(wrap_text(t, w_name - 2 * pad, SMALL, measure))
+        h = max(6.0, 1.6 + LH_MAIN * len(name_l) + LH_SMALL * len(tr_l) + 0.8)
+        built.append((str(r.get("no", "")), name_l, tr_l, _sh_qty(r.get("qty")), h))
+
+    columns, current, used, x = [], [], 0.0, right - width
+    room = bottom - HDR - limit_top
+    for b in built:
+        if current and used + b[4] > room:
+            columns.append((x, current))
+            current, used, x = [], 0.0, x - width
+            room = bottom - HDR - limit_rest
+        current.append(b)
+        used += b[4]
+    if current:
+        columns.append((x, current))
+
+    o = []
+    for x0, col in columns:
+        if x0 < limit_left - 0.01:
+            break
+        hdr_top = bottom - HDR
+        top = hdr_top - sum(b[4] for b in col)
+        o.append('<g style="%s">' % _THIN)
+        o.append(_sh_line(x0 + w_no, top, x0 + w_no, bottom))
+        o.append(_sh_line(x0 + w_no + w_name, top, x0 + w_no + w_name, bottom))
+        o.append(_sh_line(x0, hdr_top, x0 + width, hdr_top))
+        yb = hdr_top
+        for b in col[:-1]:
+            yb -= b[4]
+            o.append(_sh_line(x0, yb, x0 + width, yb))
+        o.append('</g><g style="%s">' % _THICK)
+        o.append('<rect x="%s" y="%s" width="%s" height="%s"/>' % (_sh_f(x0), _sh_f(top), _sh_f(width), _sh_f(bottom - top)))
+        o.append("</g>")
+        o.append(_sh_text(x0 + pad, hdr_top + 4.2, headers[0], 2.4, ""))
+        o.append(_sh_text(x0 + w_no + pad, hdr_top + 4.2, headers[1], 2.4, ""))
+        o.append(_sh_text(x0 + w_no + w_name + pad, hdr_top + 4.2, headers[2], 2.4, ""))
+        yb = hdr_top
+        for no, name_l, tr_l, qty, h in col:
+            yt = yb - h
+            o.append(_sh_text(x0 + w_no / 2.0, yt + 4.4, no, MAIN, ";text-anchor:middle"))
+            o.append(_sh_text(x0 + w_no + w_name + w_qty / 2.0, yt + 4.4, qty, MAIN, ";text-anchor:middle"))
+            y = yt + 4.4
+            for line in name_l:
+                o.append(_sh_text(x0 + w_no + pad, y, line, MAIN))
+                y += LH_MAIN
+            y -= 0.6
+            for line in tr_l:
+                o.append(_sh_text(x0 + w_no + pad, y, line, SMALL))
+                y += LH_SMALL
+            yb = yt
+    return o
 
 
 def _group_attrs(svg, gid):
@@ -416,7 +508,7 @@ def _fit_style(tag, text, measure):
 
 
 def fill_sheet(svg, values, processes=None, revisions=None, process_headers=None,
-               revision_headers=None, logo_href=None, measure=None):
+               revision_headers=None, logo_href=None, measure=None, bom=None, bom_headers=None):
     """Writes `values` ({"pdm_name": "Kostka", "pdm_label_name": "NAZWA", ...}) into the
     matching freecad:editable texts and builds the tables and the logo into their groups.
     Works on the EasyPDM template and on any custom template that uses the same names; what
@@ -431,20 +523,35 @@ def fill_sheet(svg, values, processes=None, revisions=None, process_headers=None
 
     svg = re.sub(r'(<text\b[^>]*\bfreecad:editable="([^"]+)"[^>]*>)(.*?)(</text>)', fill, svg, flags=re.S)
 
+    proc_ext, rev_ext = {}, {}
     a = _group_attrs(svg, "pdm_processes")
     if a is not None:
         inner = []
         if processes:
             inner = _processes_table(float(a.get("x", 0)), float(a.get("bottom", 0)), float(a.get("width", 180)),
-                                     processes, process_headers or ("No.", "PROCESS", "DESCRIPTION"), measure)
+                                     processes, process_headers or ("No.", "PROCESS", "DESCRIPTION"), measure, proc_ext)
         svg = _replace_group(svg, "pdm_processes", inner)
     a = _group_attrs(svg, "pdm_revisions")
     if a is not None:
         inner = []
         if revisions:
             inner = _revisions_table(float(a.get("right", 0)), float(a.get("top", 0)), float(a.get("width", 160)),
-                                     revisions, revision_headers or ("REV.", "DATE", "DESCRIPTION", "BY"), measure)
+                                     revisions, revision_headers or ("REV.", "DATE", "DESCRIPTION", "BY"), measure, rev_ext)
         svg = _replace_group(svg, "pdm_revisions", inner)
+    a = _group_attrs(svg, "pdm_bom")
+    if a is not None:
+        inner = []
+        if bom:
+            right, width = float(a.get("right", 0)), float(a.get("width", 90))
+            bottom = proc_ext.get("top", float(a.get("bottom", 0)))
+            frame_top = float(a.get("top", 0)) + 5.0
+            first_top = frame_top
+            # The revisions table hangs from the frame's top-right corner, over the first column.
+            if "bottom" in rev_ext and rev_ext["left"] < right:
+                first_top = rev_ext["bottom"] + 5.0
+            inner = _bom_table(right, bottom, width, bom, bom_headers or ("No.", "DRAWING NUMBER", "QTY"), measure,
+                               first_top, frame_top, float(a.get("left", 0)))
+        svg = _replace_group(svg, "pdm_bom", inner)
     a = _group_attrs(svg, "pdm_logo")
     if a is not None:
         inner = []
@@ -571,6 +678,24 @@ def sheet_tables(tb):
             (lab("revisionLetter", "Rev."), lab("revisionDate", "Date"), lab("revisionDescription", "Change description"), lab("revisionBy", "By")))
 
 
+def sheet_bom(tb):
+    """The parts list rows and headers from the title block data; empty for a part, or from a
+    server older than 0.9.4, which sends no "bom"."""
+    labels = tb.get("labels") or {}
+    lab = lambda k, d: (labels.get(k) or d).upper()
+    rows = [{
+        "no": r.get("position"),
+        # The drawing number (the record name, "34(Angle 30x30x3)"), which says which drawing to
+        # look for; the name's translations go under it.
+        "name": r.get("drawingNumber") or r.get("name") or "",
+        "nameTr": ["%s: %s" % (x.get("languageCode"), x.get("name")) for x in (r.get("nameTranslations") or []) if x.get("name")],
+        "qty": r.get("quantity"),
+        "itemId": r.get("itemId"),
+        "drawingNumber": r.get("drawingNumber") or "",
+    } for r in tb.get("bom") or []]
+    return rows, (lab("bomNo", "No."), lab("bomDrawingNumber", "Drawing number"), lab("bomQuantity", "Qty"))
+
+
 def is_pdm_template(tpl):
     try:
         return tpl is not None and any(k.startswith("pdm_") for k in dict(tpl.EditableTexts))
@@ -618,7 +743,10 @@ def _sh_refresh_page(doc, page, tb, sheet_no, sheet_count, logo_href, measure):
     if not own:
         values.pop("pdm_label_format", None)
     processes, revisions, p_head, r_head = sheet_tables(tb)
-    svg = fill_sheet(base, values, processes, revisions, p_head, r_head, logo_href, measure)
+    # The parts list goes on the first sheet only, like the title block's own tables would
+    # repeat otherwise; later sheets carry details.
+    bom, b_head = sheet_bom(tb) if sheet_no == 1 else ([], None)
+    svg = fill_sheet(base, values, processes, revisions, p_head, r_head, logo_href, measure, bom, b_head)
 
     old_texts = dict(tpl.EditableTexts) if tpl is not None else {}
     if tpl is not None and svg == current and all(old_texts.get(k) == v for k, v in values.items() if k in old_texts):
@@ -636,6 +764,143 @@ def _sh_refresh_page(doc, page, tb, sheet_no, sheet_count, logo_href, measure):
             texts[k] = val
     tpl.EditableTexts = texts
     return True
+
+
+def _sh_record_of(obj):
+    """The EasyPDM record name of the file a component comes from ("2(Plate 1)" for
+    "2(Plate 1).B.FCStd"), or None for a component that is not an EasyPDM file. An App::Link
+    is followed to its target's document."""
+    target = obj
+    try:
+        target = obj.getLinkedObject(True) or obj
+    except Exception:
+        pass
+    doc = getattr(target, "Document", None)
+    base = os.path.splitext(os.path.basename(getattr(doc, "FileName", "") or ""))[0]
+    if not base or "." not in base:
+        return None
+    return base.rsplit(".", 1)[0]
+
+
+def _sh_view_components(view):
+    """[(record name, shape)] for every component a TechDraw view shows: the direct children
+    of an Assembly object (or App::Part) among its sources, or the source itself when it is a
+    link to an EasyPDM file. Shapes are placed as the view's own source shape is."""
+    import Part
+    found = []
+    for src in list(getattr(view, "Source", []) or []) + list(getattr(view, "XSource", []) or []):
+        rec = _sh_record_of(src) if src.isDerivedFrom("App::Link") else None
+        if rec is not None and src.Document is not getattr(src.getLinkedObject(True), "Document", None):
+            try:
+                found.append((rec, Part.getShape(src)))
+            except Exception:
+                pass
+            continue
+        try:
+            subs = src.getSubObjects()
+        except Exception:
+            subs = []
+        for sub in subs:
+            try:
+                child = src.getSubObject(sub, retType=1)
+            except Exception:
+                continue
+            if child is None:
+                continue
+            rec = _sh_record_of(child)
+            if rec is None:
+                continue
+            try:
+                shape = Part.getShape(src, sub)
+            except Exception:
+                continue
+            if not shape.isNull():
+                found.append((rec, shape))
+    return found
+
+
+def _sh_balloon_target(view, balloon, comps):
+    """The record name of the component a balloon's arrow points at, or None.
+
+    The arrow tip (OriginX/OriginY) is in the view's unscaled coordinates around the centre of
+    its source shape, Y up -- the frame projectPoint() works in once that centre is taken off
+    (both checked against FreeCAD 1.1's sources and a projected test assembly). A line through
+    the tip along the viewing direction is tested against every component: the one it meets
+    nearest the viewer is what is visible there. A tip that misses every solid -- placed on an
+    outline -- goes to the nearest component within 2 mm on paper."""
+    import Part
+    import TechDraw
+    from FreeCAD import Vector
+    if not comps:
+        return None
+    try:
+        scale = float(view.getScale())
+    except Exception:
+        scale = float(getattr(view, "Scale", 1.0) or 1.0)
+    whole = Part.makeCompound([c[1] for c in comps])
+    centre = TechDraw.findCentroid(whole, view.Direction)
+    ex, ey, ez = (view.projectPoint(Vector(*v)) for v in ((1, 0, 0), (0, 1, 0), (0, 0, 1)))
+    ax_x, ax_y = Vector(ex.x, ey.x, ez.x), Vector(ex.y, ey.y, ez.y)
+    toward = ax_x.cross(ax_y)                       # out of the paper, toward the viewer
+    tip = centre + ax_x * float(balloon.OriginX) + ax_y * float(balloon.OriginY)
+    reach = whole.BoundBox.DiagonalLength + 10.0
+    line = Part.LineSegment(tip - toward * reach, tip + toward * reach).toShape()
+    hits, near = [], []
+    for rec, shape in comps:
+        try:
+            dist = shape.distToShape(line)[0]
+        except Exception:
+            continue
+        if dist <= 0.01:
+            depth = None
+            try:
+                depth = max(v.Point.dot(toward) for v in shape.section(line).Vertexes)
+            except Exception:
+                pass
+            hits.append((depth if depth is not None else -1e9, rec))
+        else:
+            near.append((dist, rec))
+    if hits:
+        return max(hits)[1]
+    near = [n for n in near if n[0] * scale <= 2.0]
+    return min(near)[1] if near else None
+
+
+def renumber_balloons(doc, pages, bom):
+    """Sets each balloon on `pages` to the parts list number of the component it points at,
+    so the numbers on the drawing are the ones in the list -- and in EasyPDM's structure --
+    however they were typed. A balloon pointing at nothing recognisable (not an EasyPDM
+    component, or a component not in the list) keeps its text. Returns (renumbered, left)."""
+    by_record = {}
+    for r in bom:
+        key = (r.get("drawingNumber") or "").strip().lower()
+        if key:
+            by_record[key] = str(r.get("no"))
+    done = left = 0
+    comps_of = {}
+    for page in pages:
+        for obj in list(getattr(page, "Views", []) or []):
+            if getattr(obj, "TypeId", "") != "TechDraw::DrawViewBalloon":
+                continue
+            view = obj.SourceView
+            if view is None or not hasattr(view, "projectPoint"):
+                left += 1
+                continue
+            if view.Name not in comps_of:
+                comps_of[view.Name] = _sh_view_components(view)
+            try:
+                rec = _sh_balloon_target(view, obj, comps_of[view.Name])
+            except Exception as e:
+                App.Console.PrintWarning("EasyPDM: balloon %s: %s\n" % (obj.Label, e))
+                rec = None
+            no = by_record.get((rec or "").lower())
+            if no is None:
+                left += 1
+                continue
+            if obj.Text != no:
+                obj.Text = no
+            done += 1
+    return done, left
 
 
 def refresh_sheets(doc, item_id, ask_existing_page=None, drawn_by=True):
@@ -669,7 +934,12 @@ def refresh_sheets(doc, item_id, ask_existing_page=None, drawn_by=True):
     measure = _sh_qt_measure()
     changed = [p for p in targets
                if _sh_refresh_page(doc, p, tb, pages.index(p) + 1, len(pages), logo, measure)]
-    if changed:
+    bom, _ = sheet_bom(tb)
+    if bom:
+        done, left = renumber_balloons(doc, targets, bom)
+        if done or left:
+            App.Console.PrintMessage("EasyPDM: balloons numbered from the parts list: %d, left as they were: %d\n" % (done, left))
+    if changed or bom:
         doc.recompute()
     return changed
 

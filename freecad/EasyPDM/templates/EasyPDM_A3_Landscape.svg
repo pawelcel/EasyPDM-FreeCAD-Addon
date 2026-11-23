@@ -115,5 +115,6 @@
   <g id="pdm_logo" data-x="393" data-y="254" data-size="17"/>
   <g id="pdm_processes" data-x="230" data-bottom="243" data-width="180"/>
   <g id="pdm_revisions" data-right="410" data-top="10" data-width="160"/>
+  <g id="pdm_bom" data-right="410" data-bottom="243" data-width="90" data-top="10" data-left="20"/>
   </g>
 </svg>
