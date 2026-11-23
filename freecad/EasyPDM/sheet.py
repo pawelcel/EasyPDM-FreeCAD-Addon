@@ -771,22 +771,20 @@ def _sh_view_components(view):
         except Exception:
             subs = []
         for sub in subs:
-            try:
-                child = src.getSubObject(sub, retType=1)
-            except Exception:
-                continue
-            if child is None:
-                continue
-            rec = _sh_record_of(child)
-            if rec is None:
-                continue
-            try:
-                shape = Part.getShape(src, sub)
-            except Exception:
-                continue
-            if not shape.isNull():
-                found.append((rec, shape))
+            found.extend(_sh_sub_component(Part, src, sub))
     return found
+
+
+def _sh_sub_component(Part, src, sub):
+    """[(record name, shape)] for one child of an assembly, or [] when it is not an EasyPDM
+    component (an origin, the joints group) or its shape cannot be had."""
+    try:
+        child = src.getSubObject(sub, retType=1)
+        rec = _sh_record_of(child) if child is not None else None
+        shape = Part.getShape(src, sub) if rec is not None else None
+    except Exception:
+        return []
+    return [(rec, shape)] if shape is not None and not shape.isNull() else []
 
 
 def _sh_balloon_target(view, balloon, comps):
@@ -820,8 +818,10 @@ def _sh_balloon_target(view, balloon, comps):
         try:
             dist = shape.distToShape(line)[0]
         except Exception:
-            continue
-        if dist <= 0.01:
+            dist = None
+        if dist is None:
+            pass
+        elif dist <= 0.01:
             depth = None
             try:
                 depth = max(v.Point.dot(toward) for v in shape.section(line).Vertexes)
