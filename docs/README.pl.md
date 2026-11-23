@@ -495,9 +495,9 @@ Tekst za długi na swoje pole dostaje mniejszą czcionkę, aż się zmieści (ni
 krótkie wartości zostają w zwykłej wielkości.
 
 **Rysunki złożeń** dostają na pierwszym arkuszu listę części (EasyPDM 0.9.4 lub nowszy), nad
-tabelą obróbek, o połowę węższą, przy prawej krawędzi ramki: liczba porządkowa, numer rysunku
-(z tłumaczeniami nazwy pod nim w projekcie wielojęzycznym) i ilość każdego bezpośredniego
-komponentu. Liczby porządkowe to pozycje komponentów w strukturze złożenia w EasyPDM. Nagłówek
+tabelą obróbek, szeroką na 156 mm, przy prawej krawędzi ramki: liczba porządkowa, numer rysunku
+(z tłumaczeniami nazwy pod nim w projekcie wielojęzycznym), producent / norma, numery
+zamówieniowe i ilość każdego bezpośredniego komponentu. Liczby porządkowe to pozycje komponentów w strukturze złożenia w EasyPDM. Nagłówek
 na dole, pozycja 1 nad nim; wiersz rośnie z tekstem, a gdy lista sięgnęłaby tabeli rewizji albo
 górnej ramki, ciąg dalszy idzie do kolumny na lewo, z własnym nagłówkiem. Każdy **balon**
 dostaje numer komponentu, na który wskazuje jego strzałka: linia przez koniec strzałki wzdłuż

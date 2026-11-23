@@ -60,7 +60,7 @@ Or unpack `EasyPDM_FreeCad_Addon_vX.zip` from a [release](https://github.com/paw
 - **Refresh drawing sheet**: fills the EasyPDM sheet with the item's current data without
   uploading.
 - **Parts list on assembly drawings**: the first sheet of an assembly's drawing gets a list of
-  its components — number, drawing number, quantity — numbered as the assembly's structure in
+  its components — number, drawing number, manufacturer / standard, order number, quantity — numbered as the assembly's structure in
   EasyPDM, and the drawing's balloons get the same numbers (EasyPDM servers from 0.9.4). Text
   too long for a title block field is set smaller until it fits.
 

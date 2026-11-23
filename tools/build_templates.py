@@ -286,10 +286,11 @@ def build_base_sheet(fmt_name, rec=None):
     add('<g id="pdm_logo" data-x="%s" data-y="%s" data-size="17"/>' % (_sh_f(X(163)), _sh_f(Y(11))))
     add('<g id="pdm_processes" data-x="%s" data-bottom="%s" data-width="180"/>' % (_sh_f(x0), _sh_f(y0)))
     add('<g id="pdm_revisions" data-right="%s" data-top="%s" data-width="160"/>' % (_sh_f(FR), _sh_f(FT)))
-    # The parts list of an assembly drawing: on the processes table (or the title block), half
-    # its width against the frame's right edge, continued to the left when it reaches the
-    # revisions table or the frame.
-    add('<g id="pdm_bom" data-right="%s" data-bottom="%s" data-width="90" data-top="%s" data-left="%s"/>'
+    # The parts list of an assembly drawing: on the processes table (or the title block), against
+    # the frame's right edge, continued to the left when it reaches the revisions table or the
+    # frame. 156 mm: number, drawing number and quantity as they were at 90 mm, plus manufacturer
+    # / standard and order number.
+    add('<g id="pdm_bom" data-right="%s" data-bottom="%s" data-width="156" data-top="%s" data-left="%s"/>'
         % (_sh_f(FR), _sh_f(y0), _sh_f(FT), _sh_f(FL)))
     add("</g>")
 
@@ -406,37 +407,54 @@ def _sh_qty(q):
 
 
 def _bom_table(right, bottom, width, rows, headers, measure, limit_top, limit_rest, limit_left):
-    """The parts list of an assembly drawing: rows [{"no", "name", "nameTr": [..], "qty"}] ("name"
-    holds the drawing number) in
-    EasyPDM's BOM order; headers (no, name, quantity). Laid out like the processes table it
-    sits on (ISO 7573): header at the bottom, the first row right above it, growing upward.
+    """The parts list of an assembly drawing: rows [{"no", "name", "nameTr": [..], "maker": [..],
+    "order": [..], "qty"}] in EasyPDM's BOM order ("name" holds the drawing number, "maker" the
+    manufacturer and standard, "order" the order numbers, one per line); headers (no, drawing
+    number, manufacturer / standard, order number, quantity). Laid out like the processes table
+    it sits on (ISO 7573): header at the bottom, the first row right above it, growing upward.
 
-    A column ends where it would reach limit_top (the first column, under the revisions
-    table) or limit_rest (the others, the frame); the rest of the rows continue in a column
-    of the same width to its left, with a header of its own and the same bottom line -- never
-    past limit_left. A row is never split. Each translation of a name goes on a line of its
-    own under the name, in smaller lettering."""
-    w_no, w_qty = 10.0, 14.0
-    w_name = width - w_no - w_qty
+    The number, drawing number and quantity columns keep the widths they had before the
+    manufacturer and order number columns joined them (10, 66 and 14 mm; asked for), which take
+    what `width` leaves. A column of the list ends where it would reach limit_top (the first
+    one, under the revisions table) or limit_rest (the others, the frame); the rest of the rows
+    continue in a column of the same width to its left, with a header of its own and the same
+    bottom line -- never past limit_left. A row is never split; it grows with the longest cell.
+    Each translation of a name goes on a line of its own under the name, in smaller lettering."""
+    w_no, w_name, w_qty = 10.0, 66.0, 14.0
+    rest = width - w_no - w_name - w_qty
+    w_order = min(30.0, rest * 0.45)
+    w_maker = rest - w_order
+    widths = (w_no, w_name, w_maker, w_order, w_qty)
     MAIN, SMALL, LH_MAIN, LH_SMALL, HDR, pad = 3.4, 2.3, 3.6, 2.7, 6.0, 1.5
+
+    def lines(values, w):
+        out = []
+        for v in values or []:
+            if v:
+                out.extend(wrap_text(v, w - 2 * pad, MAIN, measure))
+        return out
+
     built = []
     for r in rows:
         name_l = wrap_text(r.get("name", ""), w_name - 2 * pad, MAIN, measure) or [""]
         tr_l = []
         for t in r.get("nameTr") or []:
             tr_l.extend(wrap_text(t, w_name - 2 * pad, SMALL, measure))
-        h = max(6.0, 1.6 + LH_MAIN * len(name_l) + LH_SMALL * len(tr_l) + 0.8)
-        built.append((str(r.get("no", "")), name_l, tr_l, _sh_qty(r.get("qty")), h))
+        maker_l, order_l = lines(r.get("maker"), w_maker), lines(r.get("order"), w_order)
+        main_lines = max(len(name_l), len(maker_l), len(order_l), 1)
+        name_h = LH_MAIN * len(name_l) + LH_SMALL * len(tr_l)
+        h = max(6.0, 1.6 + max(name_h, LH_MAIN * main_lines) + 0.8)
+        built.append((str(r.get("no", "")), name_l, tr_l, maker_l, order_l, _sh_qty(r.get("qty")), h))
 
     columns, current, used, x = [], [], 0.0, right - width
     room = bottom - HDR - limit_top
     for b in built:
-        if current and used + b[4] > room:
+        if current and used + b[6] > room:
             columns.append((x, current))
             current, used, x = [], 0.0, x - width
             room = bottom - HDR - limit_rest
         current.append(b)
-        used += b[4]
+        used += b[6]
     if current:
         columns.append((x, current))
 
@@ -444,35 +462,40 @@ def _bom_table(right, bottom, width, rows, headers, measure, limit_top, limit_re
     for x0, col in columns:
         if x0 < limit_left - 0.01:
             break
+        xs = [x0]
+        for w in widths:
+            xs.append(xs[-1] + w)
         hdr_top = bottom - HDR
-        top = hdr_top - sum(b[4] for b in col)
+        top = hdr_top - sum(b[6] for b in col)
         o.append('<g style="%s">' % _THIN)
-        o.append(_sh_line(x0 + w_no, top, x0 + w_no, bottom))
-        o.append(_sh_line(x0 + w_no + w_name, top, x0 + w_no + w_name, bottom))
+        for cx in xs[1:-1]:
+            o.append(_sh_line(cx, top, cx, bottom))
         o.append(_sh_line(x0, hdr_top, x0 + width, hdr_top))
         yb = hdr_top
         for b in col[:-1]:
-            yb -= b[4]
+            yb -= b[6]
             o.append(_sh_line(x0, yb, x0 + width, yb))
         o.append('</g><g style="%s">' % _THICK)
         o.append('<rect x="%s" y="%s" width="%s" height="%s"/>' % (_sh_f(x0), _sh_f(top), _sh_f(width), _sh_f(bottom - top)))
         o.append("</g>")
-        o.append(_sh_text(x0 + pad, hdr_top + 4.2, headers[0], 2.4, ""))
-        o.append(_sh_text(x0 + w_no + pad, hdr_top + 4.2, headers[1], 2.4, ""))
-        o.append(_sh_text(x0 + w_no + w_name + pad, hdr_top + 4.2, headers[2], 2.4, ""))
+        for i, head in enumerate(headers[:5]):
+            o.append(_sh_text(xs[i] + pad, hdr_top + 4.2, head, 2.4, ""))
         yb = hdr_top
-        for no, name_l, tr_l, qty, h in col:
+        for no, name_l, tr_l, maker_l, order_l, qty, h in col:
             yt = yb - h
-            o.append(_sh_centred(x0 + w_no / 2.0, yt + 4.4, no, MAIN, measure))
-            o.append(_sh_centred(x0 + w_no + w_name + w_qty / 2.0, yt + 4.4, qty, MAIN, measure))
+            o.append(_sh_centred(xs[0] + w_no / 2.0, yt + 4.4, no, MAIN, measure))
+            o.append(_sh_centred(xs[4] + w_qty / 2.0, yt + 4.4, qty, MAIN, measure))
             y = yt + 4.4
             for line in name_l:
-                o.append(_sh_text(x0 + w_no + pad, y, line, MAIN))
+                o.append(_sh_text(xs[1] + pad, y, line, MAIN))
                 y += LH_MAIN
             y -= 0.6
             for line in tr_l:
-                o.append(_sh_text(x0 + w_no + pad, y, line, SMALL))
+                o.append(_sh_text(xs[1] + pad, y, line, SMALL))
                 y += LH_SMALL
+            for cx, col_l in ((xs[2], maker_l), (xs[3], order_l)):
+                for k, line in enumerate(col_l):
+                    o.append(_sh_text(cx + pad, yt + 4.4 + k * LH_MAIN, line, MAIN))
             yb = yt
     return o
 
@@ -555,14 +578,14 @@ def fill_sheet(svg, values, processes=None, revisions=None, process_headers=None
     if a is not None:
         inner = []
         if bom:
-            right, width = float(a.get("right", 0)), float(a.get("width", 90))
+            right, width = float(a.get("right", 0)), float(a.get("width", 156))
             bottom = proc_ext.get("top", float(a.get("bottom", 0)))
             frame_top = float(a.get("top", 0)) + 5.0
             first_top = frame_top
             # The revisions table hangs from the frame's top-right corner, over the first column.
             if "bottom" in rev_ext and rev_ext["left"] < right:
                 first_top = rev_ext["bottom"] + 5.0
-            inner = _bom_table(right, bottom, width, bom, bom_headers or ("No.", "DRAWING NUMBER", "QTY"), measure,
+            inner = _bom_table(right, bottom, width, bom, bom_headers or ("No.", "DRAWING NUMBER", "MANUFACTURER / STANDARD", "ORDER NUMBER", "QTY"), measure,
                                first_top, frame_top, float(a.get("left", 0)))
         svg = _replace_group(svg, "pdm_bom", inner)
     a = _group_attrs(svg, "pdm_logo")
@@ -711,11 +734,14 @@ def sheet_bom(tb):
         # look for; the name's translations go under it.
         "name": r.get("drawingNumber") or r.get("name") or "",
         "nameTr": ["%s: %s" % (x.get("languageCode"), x.get("name")) for x in (r.get("nameTranslations") or []) if x.get("name")],
+        "maker": [r.get("manufacturer") or "", r.get("standard") or ""],
+        "order": [r.get("orderNumber") or "", r.get("orderNumber2") or ""],
         "qty": r.get("quantity"),
         "itemId": r.get("itemId"),
         "drawingNumber": r.get("drawingNumber") or "",
     } for r in tb.get("bom") or []]
-    return rows, (lab("bomNo", "No."), lab("bomDrawingNumber", "Drawing number"), lab("bomQuantity", "Qty"))
+    return rows, (lab("bomNo", "No."), lab("bomDrawingNumber", "Drawing number"), lab("bomManufacturer", "Manufacturer / Standard"),
+                  lab("bomOrderNumber", "Order number"), lab("bomQuantity", "Qty"))
 
 
 def is_pdm_template(tpl):

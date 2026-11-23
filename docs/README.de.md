@@ -558,9 +558,9 @@ Zu langer Text wird kleiner gesetzt, bis er in sein Feld passt (nicht unter 1,8 
 behalten ihre Größe.
 
 **Baugruppenzeichnungen** erhalten auf dem ersten Blatt eine Stückliste (EasyPDM 0.9.4 oder
-neuer), über der Bearbeitungstabelle, halb so breit, am rechten Rahmenrand: Position,
-Zeichnungsnummer (in mehrsprachigen Projekten mit den Übersetzungen der Benennung darunter) und
-Menge jeder direkten Komponente. Die Positionen sind die der Komponenten in der Struktur der
+neuer), über der Bearbeitungstabelle, 156 mm breit, am rechten Rahmenrand: Position,
+Zeichnungsnummer (in mehrsprachigen Projekten mit den Übersetzungen der Benennung darunter),
+Hersteller / Norm, Bestellnummern und Menge jeder direkten Komponente. Die Positionen sind die der Komponenten in der Struktur der
 Baugruppe in EasyPDM. Kopfzeile unten, Position 1 darüber; eine Zeile wächst mit ihrem Text,
 und wo die Liste die Revisionstabelle oder den oberen Rahmen erreichen würde, geht sie in einer
 Spalte links daneben weiter, mit eigener Kopfzeile. Jede **Positionsnummer (Ballon)** erhält

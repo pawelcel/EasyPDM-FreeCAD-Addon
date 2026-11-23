@@ -526,8 +526,9 @@ Text too long for its field is set in smaller lettering until it fits (not below
 values keep their size.
 
 **Assembly drawings** get a parts list on their first sheet (EasyPDM 0.9.4 or later), above the
-processes table and half its width against the frame: number, drawing number (with the name's
-translations under it in a multilingual project) and quantity of each direct component. The
+processes table, 156 mm wide against the frame: number, drawing number (with the name's
+translations under it in a multilingual project), manufacturer / standard, order numbers and
+quantity of each direct component. The
 numbers are the components' positions in the assembly's structure in EasyPDM. Header at the
 bottom, row 1 above it; a row grows with its text, and when the list would reach the revisions
 table or the top of the frame it continues in a column to its left, with its own header.
