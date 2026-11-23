@@ -6,6 +6,11 @@ the macros were released with EasyPDM itself; see the
 
 ## [Unreleased]
 
+## [0.9.8]
+
+### Changed
+- **An assembly's Assembly object takes the item's name too.** Upload gave a part's body the record name (e.g. `37(Leg)`), so it showed under that name when inserted into an assembly, but left an assembly's own Assembly object as "Assembly", so every sub-assembly looked the same in the parent's tree. The Assembly object of FreeCAD's Assembly workbench now gets the record name in the same way, without the revision; an assembly with no single top-level Assembly object is left as it is.
+
 ## [0.9.7]
 
 ### Changed

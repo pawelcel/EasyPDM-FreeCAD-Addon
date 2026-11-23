@@ -788,6 +788,37 @@ def _insertable_object(doc):
         pass
     return obj
 
+def _outermost_part(obj):
+    """`obj`, albo najbardziej zewnętrzny kontener App::Part, w którym siedzi -- to on jest
+    wtedy wstawiany do złożenia."""
+    try:
+        parent = obj.getParentGeoFeatureGroup()
+        while parent is not None:
+            if parent.TypeId == "App::Part":
+                obj = parent
+            parent = parent.getParentGeoFeatureGroup()
+    except Exception:
+        pass
+    return obj
+
+def _assembly_object(doc):
+    """Główny obiekt Assembly złożenia (Assembly::AssemblyObject) -- ten, który się wstawia do
+    złożenia wyżej -- albo None, gdy nie ma dokładnie jednego. Obiekt Assembly zagnieżdżony w
+    innym obiekcie Assembly to jego część, nie osobne złożenie, więc się nie liczy."""
+    def nested(obj):
+        try:
+            parent = obj.getParentGeoFeatureGroup()
+            while parent is not None:
+                if parent.TypeId == "Assembly::AssemblyObject":
+                    return True
+                parent = parent.getParentGeoFeatureGroup()
+        except Exception:
+            pass
+        return False
+
+    top = [o for o in doc.Objects if o.TypeId == "Assembly::AssemblyObject" and not nested(o)]
+    return _outermost_part(top[0]) if len(top) == 1 else None
+
 def _label_main_object(doc, record_name):
     """Nadaje bryle części nazwę rekordu z PDM, BEZ rewizji -- np. "1(Cube)" przy pliku
     "1(Cube).A.FCStd".
@@ -797,12 +828,15 @@ def _label_main_object(doc, record_name):
     kilku częściach nie do odróżnienia (zgłoszone przez użytkownika). Rewizja zostaje tylko
     w nazwie pliku: etykieta bryły nie musiałaby się zmieniać przy każdej nowej rewizji.
 
-    Tylko części: złożenie nie ma jednej bryły. Błąd niczego nie zatrzymuje -- to wygoda,
-    nie warunek wysyłki."""
+    Złożenie dostaje to samo na swoim obiekcie Assembly (natywny Assembly workbench): to on
+    jest wstawiany do złożenia wyżej, a zostawał jako "Assembly" przy każdym pod-złożeniu
+    (zgłoszone przez użytkownika). Błąd niczego nie zatrzymuje -- to wygoda, nie warunek
+    wysyłki."""
     try:
-        if _cad_item_type(doc) != "part":
-            return
-        obj = _insertable_object(doc)
+        if _cad_item_type(doc) == "assembly":
+            obj = _assembly_object(doc)
+        else:
+            obj = _insertable_object(doc)
         if obj is not None and obj.Label != record_name:
             App.Console.PrintMessage(f"EasyPDM: etykieta '{obj.Label}' -> '{record_name}'\n")
             obj.Label = record_name
