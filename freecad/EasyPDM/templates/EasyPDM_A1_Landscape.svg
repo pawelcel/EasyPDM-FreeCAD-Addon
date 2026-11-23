@@ -141,30 +141,30 @@
   <rect id="title_block_frame" x="651" y="540" width="180" height="44" style="fill:none;stroke:#000000;stroke-width:0.7;stroke-linecap:round;stroke-linejoin:round"/>
   <g id="title_block_fields" style="fill:#000000;stroke:none">
   <text freecad:editable="pdm_label_drawn_by" x="652.5" y="543" style="font-size:2px;fill:#000000"><tspan>DRAWN BY</tspan></text>
-  <text freecad:editable="pdm_drawn_by" x="652.5" y="548.5" style="font-size:3.5px;fill:#000000"><tspan></tspan></text>
+  <text freecad:editable="pdm_drawn_by" data-fit-width="43" x="652.5" y="548.5" style="font-size:3.5px;fill:#000000"><tspan></tspan></text>
   <text freecad:editable="pdm_label_drawn_date" x="698.5" y="543" style="font-size:2px;fill:#000000"><tspan>DATE</tspan></text>
-  <text freecad:editable="pdm_drawn_date" x="698.5" y="548.5" style="font-size:3.5px;fill:#000000"><tspan></tspan></text>
+  <text freecad:editable="pdm_drawn_date" data-fit-width="21" x="698.5" y="548.5" style="font-size:3.5px;fill:#000000"><tspan></tspan></text>
   <text freecad:editable="pdm_label_approved_by" x="652.5" y="554" style="font-size:2px;fill:#000000"><tspan>APPROVED BY</tspan></text>
-  <text freecad:editable="pdm_approved_by" x="652.5" y="559.5" style="font-size:3.5px;fill:#000000"><tspan></tspan></text>
+  <text freecad:editable="pdm_approved_by" data-fit-width="43" x="652.5" y="559.5" style="font-size:3.5px;fill:#000000"><tspan></tspan></text>
   <text freecad:editable="pdm_label_approved_date" x="698.5" y="554" style="font-size:2px;fill:#000000"><tspan>DATE</tspan></text>
-  <text freecad:editable="pdm_approved_date" x="698.5" y="559.5" style="font-size:3.5px;fill:#000000"><tspan></tspan></text>
+  <text freecad:editable="pdm_approved_date" data-fit-width="21" x="698.5" y="559.5" style="font-size:3.5px;fill:#000000"><tspan></tspan></text>
   <text freecad:editable="pdm_label_material" x="652.5" y="565" style="font-size:2px;fill:#000000"><tspan>MATERIAL</tspan></text>
-  <text freecad:editable="pdm_material" x="652.5" y="570.5" style="font-size:3.5px;fill:#000000"><tspan></tspan></text>
+  <text freecad:editable="pdm_material" data-fit-width="67" x="652.5" y="570.5" style="font-size:3.5px;fill:#000000"><tspan></tspan></text>
   <text freecad:editable="pdm_label_scale" x="652.5" y="576" style="font-size:2px;fill:#000000"><tspan>SCALE</tspan></text>
-  <text freecad:editable="pdm_scale" freecad:autofill="scale" x="652.5" y="581.5" style="font-size:3.5px;fill:#000000"><tspan>1:1</tspan></text>
+  <text freecad:editable="pdm_scale" freecad:autofill="scale" data-fit-width="19" x="652.5" y="581.5" style="font-size:3.5px;fill:#000000"><tspan>1:1</tspan></text>
   <text freecad:editable="pdm_label_sheet" x="674.5" y="576" style="font-size:2px;fill:#000000"><tspan>SHEET</tspan></text>
-  <text freecad:editable="pdm_sheet" freecad:autofill="sheet" x="674.5" y="581.5" style="font-size:3.5px;fill:#000000"><tspan>1 / 1</tspan></text>
+  <text freecad:editable="pdm_sheet" freecad:autofill="sheet" data-fit-width="15" x="674.5" y="581.5" style="font-size:3.5px;fill:#000000"><tspan>1 / 1</tspan></text>
   <text freecad:editable="pdm_label_mass" x="692.5" y="576" style="font-size:2px;fill:#000000"><tspan>MASS</tspan></text>
-  <text freecad:editable="pdm_mass" x="692.5" y="581.5" style="font-size:3.5px;fill:#000000"><tspan></tspan></text>
+  <text freecad:editable="pdm_mass" data-fit-width="27" x="692.5" y="581.5" style="font-size:3.5px;fill:#000000"><tspan></tspan></text>
   <text freecad:editable="pdm_label_company" x="722.5" y="543" style="font-size:2px;fill:#000000"><tspan>COMPANY</tspan></text>
-  <text freecad:editable="pdm_company" x="722.5" y="548.8" style="font-size:3.5px;fill:#000000"><tspan></tspan></text>
+  <text freecad:editable="pdm_company" data-fit-width="107" x="722.5" y="548.8" style="font-size:3.5px;fill:#000000"><tspan></tspan></text>
   <text freecad:editable="pdm_label_name" x="722.5" y="554" style="font-size:2px;fill:#000000"><tspan>NAME</tspan></text>
-  <text freecad:editable="pdm_name" x="722.5" y="561.5" style="font-size:6px;fill:#000000"><tspan></tspan></text>
-  <text freecad:editable="pdm_name_translations" x="722.5" y="566.3" style="font-size:2.3px;fill:#000000"><tspan></tspan></text>
+  <text freecad:editable="pdm_name" data-fit-width="90" x="722.5" y="561.5" style="font-size:6px;fill:#000000"><tspan></tspan></text>
+  <text freecad:editable="pdm_name_translations" data-fit-width="90" x="722.5" y="566.3" style="font-size:2.3px;fill:#000000"><tspan></tspan></text>
   <text freecad:editable="pdm_label_drawing_number" x="722.5" y="571" style="font-size:2px;fill:#000000"><tspan>DRAWING NUMBER</tspan></text>
-  <text freecad:editable="pdm_drawing_number" x="722.5" y="580" style="font-size:5px;fill:#000000"><tspan></tspan></text>
+  <text freecad:editable="pdm_drawing_number" data-fit-width="67" x="722.5" y="580" style="font-size:5px;fill:#000000"><tspan></tspan></text>
   <text freecad:editable="pdm_label_revision" x="792.5" y="571" style="font-size:2px;fill:#000000"><tspan>REVISION</tspan></text>
-  <text freecad:editable="pdm_revision" x="802.5" y="581.5" style="font-size:7px;fill:#000000;text-anchor:middle"><tspan></tspan></text>
+  <text freecad:editable="pdm_revision" data-fit-width="20" x="802.5" y="581.5" style="font-size:7px;fill:#000000;text-anchor:middle"><tspan></tspan></text>
   <text freecad:editable="pdm_label_format" x="815.5" y="571" style="font-size:2px;fill:#000000"><tspan>FORMAT</tspan></text>
   <text freecad:editable="pdm_format" x="822.5" y="581" style="font-size:5px;fill:#000000;text-anchor:middle"><tspan>A1</tspan></text>
   </g>

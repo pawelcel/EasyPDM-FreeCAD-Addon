@@ -6,6 +6,11 @@ the macros were released with EasyPDM itself; see the
 
 ## [Unreleased]
 
+## [0.9.6]
+
+### Changed
+- **A long name gets smaller lettering instead of running out of the title block.** Each field of the EasyPDM sheet knows how much room its cell has; when Upload, Download or Refresh drawing sheet fills it in, the text is measured in the sheet's own font and, if it would not fit, set in a smaller size that does — the name, drawing number, company, material, people, dates, mass, scale, sheet and revision alike. It never goes below 40% of the field's size, so it stays readable; a text longer than that still runs over. Short values keep their usual size. Custom templates are left as they are unless their fields carry the same `data-fit-width` attribute.
+
 ## [0.9.5]
 
 ### Fixed

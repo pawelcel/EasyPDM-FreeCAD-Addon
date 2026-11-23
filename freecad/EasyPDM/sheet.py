@@ -14,6 +14,7 @@ from .common import api_get, api_get_binary
 import base64 as _sh_base64
 import glob as _sh_glob
 import time as _sh_time
+import math
 from datetime import datetime as _sh_datetime
 # Audited: escape() only escapes text written into the SVG; nothing is parsed with it (added nosec B406)
 from xml.sax.saxutils import escape as _xml_escape  # nosec B406
@@ -204,7 +205,7 @@ def build_base_sheet(fmt_name, rec=None):
         add('<text freecad:editable="pdm_label_%s" x="%s" y="%s" style="font-size:2px;fill:#000000">'
             "<tspan>%s</tspan></text>" % (key, _sh_f(x), _sh_f(y), _sh_esc(SHEET_LABELS[key][1])))
 
-    def value(key, x, y, size=3.5, text="", bold=False, anchor="start", autofill=None):
+    def value(key, x, y, size=3.5, text="", bold=False, anchor="start", autofill=None, fit=None):
         # No font-weight:bold in the SVG: osifont has no bold face, so FreeCAD fakes one when it
         # exports the PDF, and that comes out as a doubled, blurred word in PDF viewers. The
         # bold flag still goes into `rec` for the SolidWorks sheet format, whose font has one.
@@ -213,23 +214,27 @@ def build_base_sheet(fmt_name, rec=None):
             style += ";text-anchor:%s" % anchor
         txt(x, y, text, size, bold, anchor, "pdm_" + key)
         extra = ' freecad:autofill="%s"' % autofill if autofill else ""
+        # data-fit-width: the room in the cell, in mm, between its lines less 1.5 mm each side.
+        # fill_sheet sets a value that would run past it in a smaller size (see _fit_style).
+        if fit:
+            extra += ' data-fit-width="%s"' % _sh_f(fit)
         add('<text freecad:editable="pdm_%s"%s x="%s" y="%s" style="%s"><tspan>%s</tspan></text>'
             % (key, extra, _sh_f(x), _sh_f(y), style, _sh_esc(text)))
 
     add('<g id="title_block_fields" style="fill:#000000;stroke:none">')
-    label("drawn_by", X(1.5), Y(3));        value("drawn_by", X(1.5), Y(8.5))
-    label("drawn_date", X(47.5), Y(3));     value("drawn_date", X(47.5), Y(8.5))
-    label("approved_by", X(1.5), Y(14));    value("approved_by", X(1.5), Y(19.5))
-    label("approved_date", X(47.5), Y(14)); value("approved_date", X(47.5), Y(19.5))
-    label("material", X(1.5), Y(25));       value("material", X(1.5), Y(30.5))
-    label("scale", X(1.5), Y(36));          value("scale", X(1.5), Y(41.5), text="1:1", autofill="scale")
-    label("sheet", X(23.5), Y(36));         value("sheet", X(23.5), Y(41.5), text="1 / 1", autofill="sheet")
-    label("mass", X(41.5), Y(36));          value("mass", X(41.5), Y(41.5))
-    label("company", X(71.5), Y(3));        value("company", X(71.5), Y(8.8), bold=True)
-    label("name", X(71.5), Y(14));          value("name", X(71.5), Y(21.5), size=6, bold=True)
-    value("name_translations", X(71.5), Y(26.3), size=2.3)
-    label("drawing_number", X(71.5), Y(31)); value("drawing_number", X(71.5), Y(40), size=5, bold=True)
-    label("revision", X(141.5), Y(31));     value("revision", X(151.5), Y(41.5), size=7, bold=True, anchor="middle")
+    label("drawn_by", X(1.5), Y(3));        value("drawn_by", X(1.5), Y(8.5), fit=43)
+    label("drawn_date", X(47.5), Y(3));     value("drawn_date", X(47.5), Y(8.5), fit=21)
+    label("approved_by", X(1.5), Y(14));    value("approved_by", X(1.5), Y(19.5), fit=43)
+    label("approved_date", X(47.5), Y(14)); value("approved_date", X(47.5), Y(19.5), fit=21)
+    label("material", X(1.5), Y(25));       value("material", X(1.5), Y(30.5), fit=67)
+    label("scale", X(1.5), Y(36));          value("scale", X(1.5), Y(41.5), text="1:1", autofill="scale", fit=19)
+    label("sheet", X(23.5), Y(36));         value("sheet", X(23.5), Y(41.5), text="1 / 1", autofill="sheet", fit=15)
+    label("mass", X(41.5), Y(36));          value("mass", X(41.5), Y(41.5), fit=27)
+    label("company", X(71.5), Y(3));        value("company", X(71.5), Y(8.8), bold=True, fit=107)
+    label("name", X(71.5), Y(14));          value("name", X(71.5), Y(21.5), size=6, bold=True, fit=90)
+    value("name_translations", X(71.5), Y(26.3), size=2.3, fit=90)
+    label("drawing_number", X(71.5), Y(31)); value("drawing_number", X(71.5), Y(40), size=5, bold=True, fit=67)
+    label("revision", X(141.5), Y(31));     value("revision", X(151.5), Y(41.5), size=7, bold=True, anchor="middle", fit=20)
     label("format", X(164.5), Y(31));       value("format", X(171.5), Y(41), size=5, text=fmt_name, anchor="middle")
     add("</g>")
 
@@ -358,6 +363,27 @@ def _replace_group(svg, gid, inner):
     return svg[:m.start()] + new + svg[m.end():]
 
 
+def _fit_style(tag, text, measure):
+    """The opening <text> tag of a field, with its font size made smaller when `text` would
+    run past the cell (a long name, a company with a long legal form). The width allowed is
+    the tag's data-fit-width; a tag without it -- a custom template's own field -- is left as
+    it is. The size is scaled by how much too wide the text is, then rounded down to a tenth
+    of a millimetre, and never goes below 40% of the size the template gives (nor 1.8 mm):
+    smaller than that it could not be read any more, and a text that long overruns the cell
+    rather than turn into a grey line."""
+    w = re.search(r'\bdata-fit-width="([0-9.]+)"', tag)
+    sz = re.search(r'font-size:([0-9.]+)px', tag)
+    if not w or not sz or not text:
+        return tag
+    width, size = float(w.group(1)), float(sz.group(1))
+    needed = measure(text, size)
+    if needed <= width:
+        return tag
+    floor = max(1.8, size * 0.4)
+    new = max(floor, math.floor(size * width / needed * 10) / 10.0)
+    return tag[:sz.start(1)] + _sh_f(new) + tag[sz.end(1):]
+
+
 def fill_sheet(svg, values, processes=None, revisions=None, process_headers=None,
                revision_headers=None, logo_href=None, measure=None):
     """Writes `values` ({"pdm_name": "Kostka", "pdm_label_name": "NAZWA", ...}) into the
@@ -370,7 +396,7 @@ def fill_sheet(svg, values, processes=None, revisions=None, process_headers=None
         name = m.group(2)
         if name not in values:
             return m.group(0)
-        return m.group(1) + "<tspan>%s</tspan>" % _sh_esc(values[name]) + m.group(4)
+        return _fit_style(m.group(1), values[name], measure) + "<tspan>%s</tspan>" % _sh_esc(values[name]) + m.group(4)
 
     svg = re.sub(r'(<text\b[^>]*\bfreecad:editable="([^"]+)"[^>]*>)(.*?)(</text>)', fill, svg, flags=re.S)
 
