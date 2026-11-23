@@ -457,10 +457,16 @@ def refresh_sheet():
     without uploading anything -- the same refresh Upload and Download do (sheet.refresh_sheets); pages without the EasyPDM sheet are left alone and nothing is saved."""
     doc = App.ActiveDocument
     item = require_item(doc)
-    changed = module("sheet").refresh_sheets(doc, item["id"], None, True)
+    sheet = module("sheet")
+    changed = sheet.refresh_sheets(doc, item["id"], None, True)
     if changed:
         doc.recompute()
         _notify(_tr("Drawing sheet refreshed on {pages}.", pages=", ".join(p.Label for p in changed)))
+    # Nothing changed is not the same as no sheet: a sheet already up to date used to be
+    # reported as missing (seen right after a refresh that only renumbered balloons).
+    elif any(sheet.is_pdm_template(getattr(o, "Template", None))
+             for o in doc.Objects if o.TypeId == "TechDraw::DrawPage"):
+        _notify(_tr("The drawing sheet is already up to date."))
     else:
         _notify(_tr("No page uses the EasyPDM sheet."))
 

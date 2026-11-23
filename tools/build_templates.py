@@ -814,7 +814,7 @@ def _sh_view_components(view):
         rec = _sh_record_of(src) if src.isDerivedFrom("App::Link") else None
         if rec is not None and src.Document is not getattr(src.getLinkedObject(True), "Document", None):
             try:
-                found.append((rec, Part.getShape(src)))
+                found.append((rec, Part.getShape(src, noElementMap=True)))
             except Exception:
                 pass
             continue
@@ -833,7 +833,9 @@ def _sh_sub_component(Part, src, sub):
     try:
         child = src.getSubObject(sub, retType=1)
         rec = _sh_record_of(child) if child is not None else None
-        shape = Part.getShape(src, sub) if rec is not None else None
+        # noElementMap: only the geometry is needed, and element maps of linked shapes flood
+        # the report view with "hasher mismatch".
+        shape = Part.getShape(src, sub, noElementMap=True) if rec is not None else None
     except Exception:
         return []
     return [(rec, shape)] if shape is not None and not shape.isNull() else []

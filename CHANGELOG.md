@@ -13,6 +13,9 @@ the macros were released with EasyPDM itself; see the
 - **Balloons numbered from the parts list.** Each balloon on the drawing gets the number of the component its arrow points at, whatever was typed into it, so the drawing, the list and the structure in EasyPDM say the same. The component is found by following the arrow's tip into the model along the viewing direction, taking the one nearest the viewer, or the nearest one when the tip sits on an outline. A balloon pointing at something that is not on the list keeps its text.
 - **Numbers in the parts list, the processes table and the revisions table stand in line.** Centred by TechDraw, single digits came out visibly staggered (a 4 further right than a 1); the add-on now centres them itself from the font's own measurements.
 
+### Fixed
+- **Refresh drawing sheet no longer says no page uses the EasyPDM sheet when the sheet is simply up to date.** It now says the sheet is already up to date, and keeps the old message for a drawing that really has no EasyPDM sheet.
+
 ## [0.9.8]
 
 ### Changed

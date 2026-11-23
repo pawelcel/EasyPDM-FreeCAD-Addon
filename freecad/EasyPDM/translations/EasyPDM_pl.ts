@@ -140,6 +140,10 @@
         <translation>Odświeżono arkusz rysunku: {pages}.</translation>
     </message>
     <message>
+        <source>The drawing sheet is already up to date.</source>
+        <translation>Arkusz rysunkowy jest już aktualny.</translation>
+    </message>
+    <message>
         <source>No page uses the EasyPDM sheet.</source>
         <translation>Żadna strona nie używa arkusza EasyPDM.</translation>
     </message>

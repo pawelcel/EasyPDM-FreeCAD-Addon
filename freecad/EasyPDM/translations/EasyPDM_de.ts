@@ -140,6 +140,10 @@
         <translation>Zeichnungsblatt aktualisiert: {pages}.</translation>
     </message>
     <message>
+        <source>The drawing sheet is already up to date.</source>
+        <translation>Das Zeichnungsblatt ist bereits aktuell.</translation>
+    </message>
+    <message>
         <source>No page uses the EasyPDM sheet.</source>
         <translation>Keine Seite verwendet das EasyPDM-Blatt.</translation>
     </message>
