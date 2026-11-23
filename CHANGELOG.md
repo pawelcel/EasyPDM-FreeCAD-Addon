@@ -6,6 +6,11 @@ the macros were released with EasyPDM itself; see the
 
 ## [Unreleased]
 
+## [0.9.5]
+
+### Fixed
+- **The assembly comes back to the front after its last component.** Since 0.9.4 each component's window opens while its form is filled in, but once the last one was done FreeCAD kept showing that part instead of the assembly whose form comes next. The window that was in front before (the assembly) is now brought back explicitly after every component, and after every picture taken for the upload.
+
 ## [0.9.4]
 
 ### Changed

@@ -1288,6 +1288,7 @@ def _upload_model_image_attachment(doc, item_id):
     view = None
     created_view = False
     temp_window = None
+    previous_window = None
     previous_document = None
     label = getattr(doc, "Label", "?")
     try:
@@ -1312,13 +1313,15 @@ def _upload_model_image_attachment(doc, item_id):
             # komentarz, który tu wcześniej stał): to jedyna droga do widoku, z którego
             # saveImage w ogóle potrafi renderować.
             previous_document = getattr(getattr(Gui, "ActiveDocument", None), "Name", None)
+            previous_window = _active_subwindow()
             try:
                 Gui.setActiveDocument(doc.Name)
                 # activateView(typ, create=True) tworzy okno 3D, jeśli dokument go nie ma.
+                before = _subwindows()
                 Gui.activateView("Gui::View3DInventor", True)
                 view = _three_d_view_of(Gui.ActiveDocument)
                 created_view = view is not None
-                temp_window = _active_subwindow() if created_view else None
+                temp_window = _new_subwindow(before) if created_view else None
             except Exception as e:
                 App.Console.PrintMessage(f"EasyPDM: zrzut '{label}' -- activateView nie zadzialalo ({e})\n")
 
@@ -1380,17 +1383,50 @@ def _upload_model_image_attachment(doc, item_id):
                 Gui.setActiveDocument(previous_document)
             except Exception:
                 pass
+            _raise_window(previous_window)
 
-def _active_subwindow():
-    """The main window's active MDI sub-window -- right after activateView has opened a view,
-    the window of that view."""
+def _mdi_area():
     try:
         import FreeCADGui as Gui
 
-        area = Gui.getMainWindow().findChild(QtWidgets.QMdiArea)
+        return Gui.getMainWindow().findChild(QtWidgets.QMdiArea)
+    except Exception:
+        return None
+
+def _subwindows():
+    area = _mdi_area()
+    try:
+        return list(area.subWindowList()) if area is not None else []
+    except Exception:
+        return []
+
+def _active_subwindow():
+    """The main window's active MDI sub-window."""
+    area = _mdi_area()
+    try:
         return area.activeSubWindow() if area is not None else None
     except Exception:
         return None
+
+def _new_subwindow(before):
+    """The sub-window that appeared since `before` was taken -- the window activateView has
+    just opened. Found by difference rather than as the active one, because Qt may activate
+    the new window only on a later pass of the event loop."""
+    new = [w for w in _subwindows() if w not in before]
+    return new[-1] if new else _active_subwindow()
+
+def _raise_window(window):
+    """Brings a sub-window to the front. setActiveDocument alone does not: it changes
+    FreeCAD's active document but leaves another window in front (seen in practice: after the
+    last component, the assembly stayed behind the last part's window)."""
+    area = _mdi_area()
+    if area is None or window is None:
+        return
+    try:
+        if window in area.subWindowList():
+            area.setActiveSubWindow(window)
+    except Exception:
+        pass
 
 def _close_window(window):
     """Closes a 3D window this add-on opened. A FreeCAD 3D view has no close() in Python, so
@@ -1412,21 +1448,23 @@ def _show_while_filling_in(doc):
     often loaded only partially (see _ensure_fully_loaded), which is why it is loaded in full
     first: a partial document would show only what the links need. Returns the document to
     carry on with (it may be another instance after the full load) and what _stop_showing
-    undoes: the window opened here, if any, and the document that was active before. Best
+    undoes: the window opened here, if any, and the document and window in front before. Best
     effort -- not being able to show the part must not stop the upload."""
     doc = _ensure_fully_loaded(doc)
-    shown = {"window": None, "previous": None}
+    shown = {"window": None, "previous": None, "previous_window": _active_subwindow()}
     try:
         import FreeCADGui as Gui
 
         shown["previous"] = getattr(getattr(Gui, "ActiveDocument", None), "Name", None)
+        before = _subwindows()
         Gui.setActiveDocument(doc.Name)
-        had_view = _three_d_view_of(Gui.ActiveDocument) is not None
+        had_view = _three_d_view_of(Gui.getDocument(doc.Name)) is not None
         # With create=True this raises the document's existing 3D view, or opens one.
         Gui.activateView("Gui::View3DInventor", True)
-        view = _three_d_view_of(Gui.ActiveDocument)
+        view = _three_d_view_of(Gui.getDocument(doc.Name))
         if view is not None and not had_view:
-            shown["window"] = _active_subwindow()
+            shown["window"] = _new_subwindow(before)
+            _raise_window(shown["window"])
             try:
                 view.viewAxonometric()
                 view.fitAll()
@@ -1438,8 +1476,8 @@ def _show_while_filling_in(doc):
 
 def _stop_showing(shown):
     """Undoes _show_while_filling_in once the component is done: closes the window it opened
-    -- an assembly of fifty parts must not leave fifty windows -- and goes back to the
-    document that was active before (the assembly, whose own form comes after its
+    -- an assembly of fifty parts must not leave fifty windows -- and brings back the document
+    and window that were in front before (the assembly, whose own form comes after its
     components). A window the user already had stays open."""
     _close_window(shown.get("window"))
     if shown.get("previous"):
@@ -1449,6 +1487,7 @@ def _stop_showing(shown):
             Gui.setActiveDocument(shown["previous"])
         except Exception:
             pass
+    _raise_window(shown.get("previous_window"))
 
 def _three_d_view_of(gui_doc):
     """Widok 3D dokumentu GUI, albo None gdy ten dokument nie ma własnego okna.
