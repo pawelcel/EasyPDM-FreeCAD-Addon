@@ -6,6 +6,14 @@ the macros were released with EasyPDM itself; see the
 
 ## [Unreleased]
 
+## [0.9.4]
+
+### Changed
+- **Each component of an assembly opens in FreeCAD while its form is filled in.** Uploading an assembly asks in the browser for every new component in turn, but a component FreeCAD had loaded only through the assembly's links had no window, so it could not be looked at or measured until after its form was sent. Now its 3D view opens and comes to the front just before its form appears, and closes again once that component is done, with the assembly back in front; a part that already had a window of its own keeps it.
+
+### Fixed
+- **No leftover windows after uploading an assembly.** The 3D windows opened just to take the components' pictures were meant to be closed again, but never were, so an assembly of fifty parts left fifty windows behind. They now close.
+
 ## [0.9.3]
 
 ### Fixed

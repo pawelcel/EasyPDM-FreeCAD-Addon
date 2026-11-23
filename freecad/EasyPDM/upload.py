@@ -1287,6 +1287,7 @@ def _upload_model_image_attachment(doc, item_id):
 
     view = None
     created_view = False
+    temp_window = None
     previous_document = None
     label = getattr(doc, "Label", "?")
     try:
@@ -1317,6 +1318,7 @@ def _upload_model_image_attachment(doc, item_id):
                 Gui.activateView("Gui::View3DInventor", True)
                 view = _three_d_view_of(Gui.ActiveDocument)
                 created_view = view is not None
+                temp_window = _active_subwindow() if created_view else None
             except Exception as e:
                 App.Console.PrintMessage(f"EasyPDM: zrzut '{label}' -- activateView nie zadzialalo ({e})\n")
 
@@ -1369,20 +1371,84 @@ def _upload_model_image_attachment(doc, item_id):
     finally:
         # Okno otwarte TYLKO po to, żeby zrobić zrzut, jest tu zamykane: przy złożeniu na
         # kilkanaście części zostałoby po wysyłce kilkanaście okien 3D, których użytkownik
-        # nie otwierał. Zamknięcie jest najlepszym staraniem -- gdyby się nie udało, zostaje
-        # otwarte okno, co jest brzydkie, ale niczego nie psuje.
+        # nie otwierał. Zamykane jest podokno MDI (zob. _close_window): sam widok 3D nie ma
+        # w Pythonie close(), więc wcześniejsze view.close() nigdy nie działało i okna zostawały.
         if created_view:
-            try:
-                view.close()
-            except Exception as e:
-                App.Console.PrintMessage(
-                    f"EasyPDM: zrzut '{label}' -- nie udalo sie zamknac tymczasowego okna 3D ({e})\n"
-                )
+            _close_window(temp_window)
         if previous_document:
             try:
                 Gui.setActiveDocument(previous_document)
             except Exception:
                 pass
+
+def _active_subwindow():
+    """The main window's active MDI sub-window -- right after activateView has opened a view,
+    the window of that view."""
+    try:
+        import FreeCADGui as Gui
+
+        area = Gui.getMainWindow().findChild(QtWidgets.QMdiArea)
+        return area.activeSubWindow() if area is not None else None
+    except Exception:
+        return None
+
+def _close_window(window):
+    """Closes a 3D window this add-on opened. A FreeCAD 3D view has no close() in Python, so
+    its MDI sub-window is closed instead. That closes the window only: the document stays
+    loaded and the assembly's links to it keep working (checked: a component loaded through a
+    link, shown and closed again, is still in App.listDocuments() and its link still resolves).
+    Best effort -- a window the user has already closed is simply gone."""
+    if window is None:
+        return
+    try:
+        window.close()
+    except Exception:
+        pass
+
+def _show_while_filling_in(doc):
+    """Shows a component in its own 3D view while its form is filled in, so it can be measured.
+
+    A component the assembly loaded as a link dependency has no window of its own, and is
+    often loaded only partially (see _ensure_fully_loaded), which is why it is loaded in full
+    first: a partial document would show only what the links need. Returns the document to
+    carry on with (it may be another instance after the full load) and what _stop_showing
+    undoes: the window opened here, if any, and the document that was active before. Best
+    effort -- not being able to show the part must not stop the upload."""
+    doc = _ensure_fully_loaded(doc)
+    shown = {"window": None, "previous": None}
+    try:
+        import FreeCADGui as Gui
+
+        shown["previous"] = getattr(getattr(Gui, "ActiveDocument", None), "Name", None)
+        Gui.setActiveDocument(doc.Name)
+        had_view = _three_d_view_of(Gui.ActiveDocument) is not None
+        # With create=True this raises the document's existing 3D view, or opens one.
+        Gui.activateView("Gui::View3DInventor", True)
+        view = _three_d_view_of(Gui.ActiveDocument)
+        if view is not None and not had_view:
+            shown["window"] = _active_subwindow()
+            try:
+                view.viewAxonometric()
+                view.fitAll()
+            except Exception:
+                pass
+    except Exception as e:
+        App.Console.PrintMessage(f"EasyPDM: could not show '{getattr(doc, 'Label', '?')}' ({e})\n")
+    return doc, shown
+
+def _stop_showing(shown):
+    """Undoes _show_while_filling_in once the component is done: closes the window it opened
+    -- an assembly of fifty parts must not leave fifty windows -- and goes back to the
+    document that was active before (the assembly, whose own form comes after its
+    components). A window the user already had stays open."""
+    _close_window(shown.get("window"))
+    if shown.get("previous"):
+        try:
+            import FreeCADGui as Gui
+
+            Gui.setActiveDocument(shown["previous"])
+        except Exception:
+            pass
 
 def _three_d_view_of(gui_doc):
     """Widok 3D dokumentu GUI, albo None gdy ten dokument nie ma własnego okna.
@@ -2132,78 +2198,87 @@ def process_assembly_tree(top_doc, target_folder=None):
             # interakcji użytkownika ląduje bez focusu (potwierdzone w praktyce na
             # analogicznym mechanizmie w makrze SolidWorks) -- kliknięcie OK tutaj liczy
             # się jako świeża interakcja.
-            suggested_name = doc.Label
-            ticket = str(uuid.uuid4())
+            # Komponent dostaje własne okno 3D, ZANIM formularz trafi do przeglądarki: kto go
+            # wypełnia, chce móc w tym czasie pomierzyć część we FreeCAD-zie. Komponent
+            # wczytany tylko jako zależność złożenia okna nie ma -- dotąd powstawało dopiero do
+            # zrzutu, już po wysłaniu formularza (zgłoszone przez użytkownika).
+            doc, shown = _show_while_filling_in(doc)
+            docs[file_path] = doc
+            try:
+                suggested_name = doc.Label
+                ticket = str(uuid.uuid4())
 
-            # Najpierw zostawiamy prośbę już otwartej karcie. Nowa karta — i okno, które
-            # przywraca możliwość przejęcia fokusu — tylko wtedy, gdy nikt jej nie podjął,
-            # czyli gdy przeglądarka jest zamknięta.
-            opened_tab = False
-            component_material = part_material_and_mass(doc)[0]
-            if not publish_cad_request(ticket, suggested_name, _cad_item_type(doc),
-                                       component_material, _document_size(doc), component=True):
-                # Okno TYLKO wtedy, gdy karta tego biegu już raz powstała. PIERWSZE otwarcie
-                # przeglądarki w biegu i tak przejmuje fokus (to ta reguła Windows kazała klikać
-                # OK przed KOLEJNYMI), więc dla pierwszego komponentu jest zbędne — a to on
-                # otwiera kartę, która obsłuży resztę bez kart i okien.
-                if _RUN["tab_opened"]:
-                    QtWidgets.QMessageBox.information(
-                        None, t("pdm_title"), t("new_component_browser_prompt", name=suggested_name)
-                    )
-                try:
-                    url = build_browser_create_url(suggested_name, ticket, None, _document_size(doc), _cad_item_type(doc), component=True,
-                                                   material=component_material)
-                    open_in_browser(url)
-                    opened_tab = True
-                except Exception as e:
-                    QtWidgets.QMessageBox.critical(None, t("pdm_title"), t("open_browser_failed", error=e))
+                # Najpierw zostawiamy prośbę już otwartej karcie. Nowa karta — i okno, które
+                # przywraca możliwość przejęcia fokusu — tylko wtedy, gdy nikt jej nie podjął,
+                # czyli gdy przeglądarka jest zamknięta.
+                opened_tab = False
+                component_material = part_material_and_mass(doc)[0]
+                if not publish_cad_request(ticket, suggested_name, _cad_item_type(doc),
+                                           component_material, _document_size(doc), component=True):
+                    # Okno TYLKO wtedy, gdy karta tego biegu już raz powstała. PIERWSZE otwarcie
+                    # przeglądarki w biegu i tak przejmuje fokus (to ta reguła Windows kazała klikać
+                    # OK przed KOLEJNYMI), więc dla pierwszego komponentu jest zbędne — a to on
+                    # otwiera kartę, która obsłuży resztę bez kart i okien.
+                    if _RUN["tab_opened"]:
+                        QtWidgets.QMessageBox.information(
+                            None, t("pdm_title"), t("new_component_browser_prompt", name=suggested_name)
+                        )
+                    try:
+                        url = build_browser_create_url(suggested_name, ticket, None, _document_size(doc), _cad_item_type(doc), component=True,
+                                                       material=component_material)
+                        open_in_browser(url)
+                        opened_tab = True
+                    except Exception as e:
+                        QtWidgets.QMessageBox.critical(None, t("pdm_title"), t("open_browser_failed", error=e))
+                        return [], True, locked_matches
+
+                ticket_data = wait_for_ticket(ticket, raise_browser=opened_tab)
+                if ticket_data is None:
                     return [], True, locked_matches
 
-            ticket_data = wait_for_ticket(ticket, raise_browser=opened_tab)
-            if ticket_data is None:
-                return [], True, locked_matches
+                comp_export_step = ticket_data.get("exportStep")
+                if comp_export_step is None:
+                    comp_export_step = True
+                comp_export_pdf = ticket_data.get("exportPdf")
+                if comp_export_pdf is None:
+                    comp_export_pdf = False
 
-            comp_export_step = ticket_data.get("exportStep")
-            if comp_export_step is None:
-                comp_export_step = True
-            comp_export_pdf = ticket_data.get("exportPdf")
-            if comp_export_pdf is None:
-                comp_export_pdf = False
+                try:
+                    if ticket_data.get("existing"):
+                        def confirm_new_revision():
+                            rev_dlg = NewRevisionDialog(_main_window())
+                            if rev_dlg.exec() != QtWidgets.QDialog.Accepted:
+                                return None
+                            return rev_dlg.comment_text()
 
-            try:
-                if ticket_data.get("existing"):
-                    def confirm_new_revision():
-                        rev_dlg = NewRevisionDialog(_main_window())
-                        if rev_dlg.exec() != QtWidgets.QDialog.Accepted:
-                            return None
-                        return rev_dlg.comment_text()
-
-                    result = push_to_existing_item(
-                        doc, ticket_data["itemId"], confirm_new_revision,
-                        target_folder=target_folder, export_step=comp_export_step, export_pdf=comp_export_pdf,
+                        result = push_to_existing_item(
+                            doc, ticket_data["itemId"], confirm_new_revision,
+                            target_folder=target_folder, export_step=comp_export_step, export_pdf=comp_export_pdf,
+                        )
+                        if result is None:
+                            # Albo element już istniejący jest "wydany" i użytkownik odmówił
+                            # nowej rewizji, albo ma status "sprawdzany" i push_to_existing_item
+                            # zablokował wysyłkę z własnym komunikatem -- w obu przypadkach
+                            # traktujemy jak każdą inną rezygnację w tej pętli.
+                            return [], True, locked_matches
+                    else:
+                        # Nowy element -- już istnieje po stronie serwera (przeglądarka
+                        # wywołała POST /nodes z tym biletem), więc kończymy WPROST wysyłką
+                        # pliku; tworzenie kolejnego elementu przez API stworzyłoby DRUGI
+                        # rekord.
+                        result = _rename_and_upload(
+                            doc, ticket_data["itemId"], record_name_text(ticket_data, ticket_data["name"]), ticket_data["name"],
+                            1, target_folder, comp_export_step, comp_export_pdf,
+                        )
+                        newly_created_paths.add(file_path)
+                except Exception as e:
+                    QtWidgets.QMessageBox.critical(
+                        None, t("pdm_title"), t("upload_component_failed", file=os.path.basename(file_path), error=e)
                     )
-                    if result is None:
-                        # Albo element już istniejący jest "wydany" i użytkownik odmówił
-                        # nowej rewizji, albo ma status "sprawdzany" i push_to_existing_item
-                        # zablokował wysyłkę z własnym komunikatem -- w obu przypadkach
-                        # traktujemy jak każdą inną rezygnację w tej pętli.
-                        return [], True, locked_matches
-                else:
-                    # Nowy element -- już istnieje po stronie serwera (przeglądarka
-                    # wywołała POST /nodes z tym biletem), więc kończymy WPROST wysyłką
-                    # pliku; tworzenie kolejnego elementu przez API stworzyłoby DRUGI
-                    # rekord.
-                    result = _rename_and_upload(
-                        doc, ticket_data["itemId"], record_name_text(ticket_data, ticket_data["name"]), ticket_data["name"],
-                        1, target_folder, comp_export_step, comp_export_pdf,
-                    )
-                    newly_created_paths.add(file_path)
-            except Exception as e:
-                QtWidgets.QMessageBox.critical(
-                    None, t("pdm_title"), t("upload_component_failed", file=os.path.basename(file_path), error=e)
-                )
-                return [], True, locked_matches
-            doc_to_item_id[file_path] = result["itemId"]
+                    return [], True, locked_matches
+                doc_to_item_id[file_path] = result["itemId"]
+            finally:
+                _stop_showing(shown)
 
         # Zanim dogramy AKTUALNE relacje niżej, sprawdź czy w PDM nie zostały jakieś
         # relacje do dzieci, których już nie ma w lokalnej strukturze tego pod-złożenia
