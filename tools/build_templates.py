@@ -140,6 +140,19 @@ def _sh_text(x, y, content, size, extra=""):
         _sh_f(x), _sh_f(y), _sh_f(size), extra, _sh_esc(content))
 
 
+def _sh_centred(cx, y, content, size, measure):
+    """A text centred on cx by its ink, not its advance. osifont's digits sit unevenly in
+    their advance widths -- a "4" has more room on its left than a "1" -- so text-anchor:middle
+    put a column of quantities visibly out of line (reported from a FreeCAD drawing). With
+    Qt's metrics (measure.ink) the ink's own box is centred; without them the advance is."""
+    ink = getattr(measure, "ink", None)
+    if ink is not None:
+        left, width = ink(content, size)
+    else:
+        left, width = 0.0, measure(content, size)
+    return _sh_text(cx - left - width / 2.0, y, content, size)
+
+
 def _sh_line(x1, y1, x2, y2):
     return '<path d="M %s,%s L %s,%s"/>' % (_sh_f(x1), _sh_f(y1), _sh_f(x2), _sh_f(y2))
 
@@ -330,7 +343,7 @@ def _processes_table(x0, bottom, width, rows, headers, measure, extent=None):
     yb = hdr_top
     for n, name_l, desc_l, ntr_l, dtr_l, h in built:
         yt = yb - h
-        o.append(_sh_text(x0 + w_no / 2.0, yt + 5.0, str(n), MAIN, ";text-anchor:middle"))
+        o.append(_sh_centred(x0 + w_no / 2.0, yt + 5.0, str(n), MAIN, measure))
         for col_x, main_l, small_l in ((x0 + w_no + pad, name_l, ntr_l), (x0 + w_no + w_name + pad, desc_l, dtr_l)):
             y = yt + 4.4
             for line in main_l:
@@ -361,7 +374,7 @@ def _revisions_table(right, top, width, rows, headers, measure, extent=None):
         desc_l = wrap_text(r.get("description", ""), w_desc - 2 * pad, SIZE, measure) or [""]
         by_l = wrap_text(r.get("by", ""), w_by - 2 * pad, SIZE, measure) or [""]
         h = max(8.0, 3.0 + LH * max(len(desc_l), len(by_l)))
-        o_text.append(_sh_text(x0 + w_rev / 2.0, y + 5.3, r.get("label", ""), 3.4, ";text-anchor:middle"))
+        o_text.append(_sh_centred(x0 + w_rev / 2.0, y + 5.3, r.get("label", ""), 3.4, measure))
         o_text.append(_sh_text(x0 + w_rev + pad, y + 5.3, r.get("date", ""), SIZE))
         for i, line in enumerate(desc_l):
             o_text.append(_sh_text(x0 + w_rev + w_date + pad, y + 5.3 + i * LH, line, SIZE))
@@ -450,8 +463,8 @@ def _bom_table(right, bottom, width, rows, headers, measure, limit_top, limit_re
         yb = hdr_top
         for no, name_l, tr_l, qty, h in col:
             yt = yb - h
-            o.append(_sh_text(x0 + w_no / 2.0, yt + 4.4, no, MAIN, ";text-anchor:middle"))
-            o.append(_sh_text(x0 + w_no + w_name + w_qty / 2.0, yt + 4.4, qty, MAIN, ";text-anchor:middle"))
+            o.append(_sh_centred(x0 + w_no / 2.0, yt + 4.4, no, MAIN, measure))
+            o.append(_sh_centred(x0 + w_no + w_name + w_qty / 2.0, yt + 4.4, qty, MAIN, measure))
             y = yt + 4.4
             for line in name_l:
                 o.append(_sh_text(x0 + w_no + pad, y, line, MAIN))
@@ -581,7 +594,16 @@ def _sh_qt_measure():
         font.setPixelSize(100)
         metrics = _QtGui.QFontMetricsF(font)
         advance = getattr(metrics, "horizontalAdvance", None) or metrics.width
-        return lambda text, size: advance(text or "") * size / 100.0
+
+        def measure(text, size):
+            return advance(text or "") * size / 100.0
+
+        def ink(text, size):
+            r = metrics.tightBoundingRect(text or "")
+            return r.left() * size / 100.0, r.width() * size / 100.0
+
+        measure.ink = ink
+        return measure
     except Exception:
         return approx_text_width
 
