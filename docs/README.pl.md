@@ -491,6 +491,22 @@ rewizji w prawym górnym rogu (B, C, …; rewizja A to pierwsze wydanie i nie je
 Podpisy pól są w głównym języku projektu (Ustawienia → Język → Podpisy w dokumentach).
 Wartości wpisane ręcznie w pola EasyPDM zostaną nadpisane przy najbliższym odświeżeniu.
 
+Tekst za długi na swoje pole dostaje mniejszą czcionkę, aż się zmieści (nie mniej niż 1,8 mm);
+krótkie wartości zostają w zwykłej wielkości.
+
+**Rysunki złożeń** dostają na pierwszym arkuszu listę części (EasyPDM 0.9.4 lub nowszy), nad
+tabelą obróbek, o połowę węższą, przy prawej krawędzi ramki: liczba porządkowa, numer rysunku
+(z tłumaczeniami nazwy pod nim w projekcie wielojęzycznym) i ilość każdego bezpośredniego
+komponentu. Liczby porządkowe to pozycje komponentów w strukturze złożenia w EasyPDM. Nagłówek
+na dole, pozycja 1 nad nim; wiersz rośnie z tekstem, a gdy lista sięgnęłaby tabeli rewizji albo
+górnej ramki, ciąg dalszy idzie do kolumny na lewo, z własnym nagłówkiem. Każdy **balon**
+dostaje numer komponentu, na który wskazuje jego strzałka: linia przez koniec strzałki wzdłuż
+kierunku patrzenia znajduje komponent widoczny w tym miejscu (albo najbliższy, gdy strzałka
+stoi na krawędzi), dopasowany do listy po pliku z EasyPDM. Balon wskazujący coś spoza listy
+zachowuje swój tekst.
+
+![Rysunek złożenia z balonami ponumerowanymi według listy części](https://raw.githubusercontent.com/wiki/pawelcel/EasyPDM-FreeCAD-Addon/images/drawing-parts-list.png)
+
 ## Szablon
 
 `tools/build_templates.py` generuje pliki SVG i moduł dodatku `sheet.py`, który buduje arkusz —
@@ -498,5 +514,5 @@ zmieniaj skrypt, nie SVG ani `sheet.py`, i uruchom go ponownie.
 
 Własny szablon też zadziała, jeśli nazwie pola tak jak szablon EasyPDM (`pdm_name`,
 `pdm_drawn_by`, `pdm_label_name`, …), a dla tabel i logo ma puste grupy o id `pdm_processes`,
-`pdm_revisions` i `pdm_logo` z tymi samymi pozycjami `data-*`. Pola własnego szablonu spoza
+`pdm_revisions`, `pdm_bom` i `pdm_logo` z tymi samymi pozycjami `data-*`. Pola własnego szablonu spoza
 `pdm_*` zachowują to, co w nie wpisano.

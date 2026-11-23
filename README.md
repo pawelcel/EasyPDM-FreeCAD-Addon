@@ -59,6 +59,12 @@ Or unpack `EasyPDM_FreeCad_Addon_vX.zip` from a [release](https://github.com/paw
   someone else holds the lock. **Log in / Log out** is one button too.
 - **Refresh drawing sheet**: fills the EasyPDM sheet with the item's current data without
   uploading.
+- **Parts list on assembly drawings**: the first sheet of an assembly's drawing gets a list of
+  its components — number, drawing number, quantity — numbered as the assembly's structure in
+  EasyPDM, and the drawing's balloons get the same numbers (EasyPDM servers from 0.9.4). Text
+  too long for a title block field is set smaller until it fits.
+
+  ![An assembly drawing with balloons numbered from the parts list](https://raw.githubusercontent.com/wiki/pawelcel/EasyPDM-FreeCAD-Addon/images/drawing-parts-list.png)
 - **Who is signed in, and to which server**, at the top of the EasyPDM menu.
 - **Edit → Preferences → EasyPDM**: server address, download folder, the menu in every
   workbench, where the login is kept, and Log out.

@@ -554,6 +554,23 @@ Feldbeschriftungen sind in der Hauptsprache des Projekts (Einstellungen → Spra
 Beschriftungen in Dokumenten). Von Hand in die EasyPDM-Felder eingetragene Werte werden bei
 der nächsten Aktualisierung überschrieben.
 
+Zu langer Text wird kleiner gesetzt, bis er in sein Feld passt (nicht unter 1,8 mm); kurze Werte
+behalten ihre Größe.
+
+**Baugruppenzeichnungen** erhalten auf dem ersten Blatt eine Stückliste (EasyPDM 0.9.4 oder
+neuer), über der Bearbeitungstabelle, halb so breit, am rechten Rahmenrand: Position,
+Zeichnungsnummer (in mehrsprachigen Projekten mit den Übersetzungen der Benennung darunter) und
+Menge jeder direkten Komponente. Die Positionen sind die der Komponenten in der Struktur der
+Baugruppe in EasyPDM. Kopfzeile unten, Position 1 darüber; eine Zeile wächst mit ihrem Text,
+und wo die Liste die Revisionstabelle oder den oberen Rahmen erreichen würde, geht sie in einer
+Spalte links daneben weiter, mit eigener Kopfzeile. Jede **Positionsnummer (Ballon)** erhält
+die Nummer der Komponente, auf die ihr Pfeil zeigt: eine Linie durch die Pfeilspitze in
+Blickrichtung findet die dort sichtbare Komponente (oder die nächste, wenn die Spitze auf einer
+Kante sitzt), über ihre EasyPDM-Datei der Liste zugeordnet. Ein Ballon, der auf etwas außerhalb
+der Liste zeigt, behält seinen Text.
+
+![Baugruppenzeichnung mit nach der Stückliste nummerierten Ballons](https://raw.githubusercontent.com/wiki/pawelcel/EasyPDM-FreeCAD-Addon/images/drawing-parts-list.png)
+
 ## Die Vorlage
 
 `tools/build_templates.py` erzeugt die SVG-Dateien und das Modul `sheet.py` des Add-ons, das das
@@ -562,6 +579,6 @@ aus.
 
 Eine eigene Vorlage funktioniert ebenfalls, wenn sie ihre Felder wie die EasyPDM-Vorlage
 benennt (`pdm_name`, `pdm_drawn_by`, `pdm_label_name`, …) und für die Tabellen und das Logo
-leere Gruppen mit den IDs `pdm_processes`, `pdm_revisions` und `pdm_logo` und denselben
+leere Gruppen mit den IDs `pdm_processes`, `pdm_revisions`, `pdm_bom` und `pdm_logo` und denselben
 `data-*`-Positionen hat. Felder einer eigenen Vorlage außerhalb von `pdm_*` behalten, was
 eingetragen wurde.

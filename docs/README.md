@@ -522,6 +522,22 @@ and is not listed). Field labels are in the project's main language (Settings �
 Labels in documents). Values typed by hand into the EasyPDM fields are overwritten on the next
 refresh.
 
+Text too long for its field is set in smaller lettering until it fits (not below 1.8 mm); short
+values keep their size.
+
+**Assembly drawings** get a parts list on their first sheet (EasyPDM 0.9.4 or later), above the
+processes table and half its width against the frame: number, drawing number (with the name's
+translations under it in a multilingual project) and quantity of each direct component. The
+numbers are the components' positions in the assembly's structure in EasyPDM. Header at the
+bottom, row 1 above it; a row grows with its text, and when the list would reach the revisions
+table or the top of the frame it continues in a column to its left, with its own header.
+Every **balloon** is set to the number of the component its arrow points at: a line through the
+arrow's tip along the viewing direction finds the component visible there (or the nearest one
+when the tip sits on an outline), matched to the list by its EasyPDM file. A balloon pointing
+at something not in the list keeps its text.
+
+![An assembly drawing with balloons numbered from the parts list](https://raw.githubusercontent.com/wiki/pawelcel/EasyPDM-FreeCAD-Addon/images/drawing-parts-list.png)
+
 ## The template
 
 `tools/build_templates.py` generates the SVGs and the add-on's `sheet.py`, which builds the
@@ -529,5 +545,5 @@ sheet — edit the script, not the SVG or `sheet.py`, and rerun it.
 
 A custom template works too if it names its fields like the EasyPDM one (`pdm_name`,
 `pdm_drawn_by`, `pdm_label_name`, …) and, for the tables and the logo, has empty groups with
-ids `pdm_processes`, `pdm_revisions` and `pdm_logo` and the same `data-*` positions. Fields of
+ids `pdm_processes`, `pdm_revisions`, `pdm_bom` and `pdm_logo` and the same `data-*` positions. Fields of
 a custom template that are not `pdm_*` keep what was typed into them.
