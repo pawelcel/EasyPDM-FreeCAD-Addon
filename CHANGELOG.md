@@ -6,6 +6,11 @@ the macros were released with EasyPDM itself; see the
 
 ## [Unreleased]
 
+## [0.9.7]
+
+### Changed
+- **Shrunk title block text goes down to 1.8 mm in every field.** 0.9.6 stopped each field at 40% of its own size, which left the drawing number at 2 mm while the same name still fitted the wider NAME cell above it, so a name of 65–80 characters fitted as a name but ran out of the drawing number. Every field now stops at 1.8 mm, the smallest lettering in ISO 3098.
+
 ## [0.9.6]
 
 ### Changed

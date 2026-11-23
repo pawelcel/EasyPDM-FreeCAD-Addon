@@ -368,9 +368,10 @@ def _fit_style(tag, text, measure):
     run past the cell (a long name, a company with a long legal form). The width allowed is
     the tag's data-fit-width; a tag without it -- a custom template's own field -- is left as
     it is. The size is scaled by how much too wide the text is, then rounded down to a tenth
-    of a millimetre, and never goes below 40% of the size the template gives (nor 1.8 mm):
-    smaller than that it could not be read any more, and a text that long overruns the cell
-    rather than turn into a grey line."""
+    of a millimetre, and never goes below 1.8 mm, the smallest lettering ISO 3098 has: a text
+    longer than that overruns the cell rather than turn into a grey line. The same floor for
+    every field -- a floor relative to the field's size (it was 40%) stopped the drawing
+    number at 2 mm while the same name still fitted the wider NAME cell above it."""
     w = re.search(r'\bdata-fit-width="([0-9.]+)"', tag)
     sz = re.search(r'font-size:([0-9.]+)px', tag)
     if not w or not sz or not text:
@@ -379,7 +380,7 @@ def _fit_style(tag, text, measure):
     needed = measure(text, size)
     if needed <= width:
         return tag
-    floor = max(1.8, size * 0.4)
+    floor = min(size, 1.8)
     new = max(floor, math.floor(size * width / needed * 10) / 10.0)
     return tag[:sz.start(1)] + _sh_f(new) + tag[sz.end(1):]
 
